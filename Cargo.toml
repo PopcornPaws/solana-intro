@@ -6,7 +6,10 @@ license = "WTFPL"
 publish = false
 
 [dependencies]
+arrayref = "0.3.6"
 solana-program = "1.7.4"
+spl-token = { version = "3.1.1", features = ["no-entrypoint"] }
+thiserror = "1.0"
 
 [features]
 test-bpf = []
