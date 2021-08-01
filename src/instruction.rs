@@ -22,6 +22,22 @@ pub enum EscrowInstruction {
     InitEscrow {
         /// the amount party A expects to receive of token Y
         amount: u64,
+    },
+    /// Accepts a trade
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` the account of the trade recipient
+    /// 1. `[writable]` the recipient's token account for the token they send
+    /// 2. `[writable]` the recipient's token account for the token they receive
+    /// 3. `[writable]` the PDA's temp token account to get tokens from and eventually close
+    /// 4. `[writable]` the initializer's main account to send their rent fees to
+    /// 5. `[writable]` the initializer's token account that will receive the tokens
+    /// 6. `[writable]` the escrow account holding the escrow info
+    /// 7. `[]` the token program
+    /// 8. `[]` the PDA account
+    Exchange {
+        /// the amount the recipient expects to be paid 
+        amount: u64
     }
 }
 
@@ -31,6 +47,9 @@ impl EscrowInstruction {
 
         match tag {
             0 => Ok(Self::InitEscrow {
+                amount: unpack_amount(rest)?,
+            }),
+            1 => Ok(Self::Exchange {
                 amount: unpack_amount(rest)?,
             }),
             _ => Err(InvalidInstruction.into()),
