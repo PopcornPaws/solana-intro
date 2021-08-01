@@ -1,8 +1,9 @@
 // Entrypoint to the program
 use solana_program::account_info::AccountInfo;
 use solana_program::{entrypoint, entrypoint::ProgramResult};
-use solana_program::msg;
 use solana_program::pubkey::Pubkey;
+
+use crate::processor::process;
 
 entrypoint!(process_instruction);
 fn process_instruction(
@@ -10,11 +11,5 @@ fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!(
-        "process_instruction: {}: {} accounts, data={:?}",
-        program_id,
-        accounts.len(),
-        instruction_data
-    );
-    Ok(())
+    process(program_id, accounts, instruction_data)
 }

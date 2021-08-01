@@ -3,16 +3,24 @@
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::entrypoint::ProgramResult;
 use solana_program::msg;
+use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
-use solana_program::program_pack::{Pack, IsInitialized};
+use solana_program::program_pack::{IsInitialized, Pack};
 use solana_program::pubkey::Pubkey;
 use solana_program::sysvar::{rent::Rent, Sysvar};
+
+use spl_token::instruction::set_authority;
+use spl_token::instruction::AuthorityType;
 
 use crate::error::EscrowError;
 use crate::instruction::EscrowInstruction;
 use crate::state::Escrow;
 
-pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn process(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
     let instruction = EscrowInstruction::unpack(instruction_data)?;
 
     match instruction {
@@ -23,7 +31,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
     }
 }
 
-fn process_init_escrow(accounts: &[AccountInfo], amount: u64, program_id: &Pubkey) -> ProgramResult {
+fn process_init_escrow(
+    accounts: &[AccountInfo],
+    amount: u64,
+    program_id: &Pubkey,
+) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let initializer = next_account_info(account_info_iter)?;
 
@@ -50,12 +62,33 @@ fn process_init_escrow(accounts: &[AccountInfo], amount: u64, program_id: &Pubke
     }
 
     escrow_info.is_initialized = true;
-    escrow_info.initializer_sender_pubkey = *intializer.key;
+    escrow_info.initializer_sender_pubkey = *initializer.key;
     escrow_info.temp_token_account_pubkey = *temp_token_account.key;
     escrow_info.initializer_recipient_pubkey = *token_to_receive_account.key;
     escrow_info.expected_amount = amount;
 
-    Escrow::pack(escrow_info, &mut  escrow_account.data.borrow_mut())?;
+    Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
     let (pda, _bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
+
+    let token_program = next_account_info(account_info_iter)?;
+    let owner_change_ix = set_authority(
+        token_program.key,
+        temp_token_account.key,
+        Some(&pda),
+        AuthorityType::AccountOwner,
+        initializer.key,
+        &[&initializer.key],
+    )?;
+
+    msg!("Calling the token program to transfer token account ownership ...");
+    invoke(
+        &owner_change_ix,
+        &[
+            temp_token_account.clone(),
+            initializer.clone(),
+            token_program.clone(),
+        ],
+    )?;
+
     Ok(())
 }
